@@ -1,11 +1,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { parseOcrResponse } from "../src/ocr-parse.js";
-import { F1_RAW, F1_EXPECTED } from "./fixtures/f1-molto.js";
-import { F2_RAW, F2_EXPECTED } from "./fixtures/f2-juice.js";
-import { F3_RAW, F3_EXPECTED } from "./fixtures/f3-oil.js";
+import { raw as F1_RAW, expected as F1_EXPECTED } from "./fixtures/f1-molto.js";
+import { raw as F2_RAW, expected as F2_EXPECTED } from "./fixtures/f2-juice.js";
+import { raw as F3_RAW, expected as F3_EXPECTED } from "./fixtures/f3-oil.js";
 
-describe("parseOcrResponse (AC-1, AC-3, AC-4, AC-7, AC-9, AC-10, AC-12, AC-14, AC-15, AC-16, AC-17, AC-19)", () => {
+describe("parseOcrResponse (AC-1, AC-3, AC-4, AC-7, AC-10)", () => {
   test("F1: Schär Melto — full label with per100 and portion (AC-1)", () => {
     const result = parseOcrResponse(F1_RAW);
     assert.deepStrictEqual(result, F1_EXPECTED);
@@ -25,19 +25,21 @@ describe("parseOcrResponse (AC-1, AC-3, AC-4, AC-7, AC-9, AC-10, AC-12, AC-14, A
 describe("alias matching (AC-2, AC-18)", () => {
   test("recognizes 'fett' as fat (AC-2)", () => {
     const raw = {
+      product_name: "Test",
+      basis: "g",
+      columns: [{ label: "per 100 g", amount: "100", unit: "g" }],
       rows: [
-        { cells: ["Energie", "1672 kJ", "399 kcal", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["davon gesättigte Fettsäuren", "0 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Kohlenhydrate", "84 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["davon Zucker", "80 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Ballaststoffe", "2,4 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Eiweiß", "10 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Salz", "1,8 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+        { name: "Energie", unit: null, values: ["1672 kJ / 399 kcal"], ri: null },
+        { name: "Fett", unit: "g", values: ["0,1"], ri: null },
+        { name: "davon gesättigte Fettsäuren", unit: "g", values: ["0"], ri: null },
+        { name: "Kohlenhydrate", unit: "g", values: ["84"], ri: null },
+        { name: "davon Zucker", unit: "g", values: ["80"], ri: null },
+        { name: "Ballaststoffe", unit: "g", values: ["2,4"], ri: null },
+        { name: "Eiweiß", unit: "g", values: ["10"], ri: null },
+        { name: "Salz", unit: "g", values: ["1,8"], ri: null }
       ],
-      per100: true,
-      portion: null,
-      portionName: null
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.strictEqual(result.per100.fat, 0.1);
@@ -51,19 +53,21 @@ describe("alias matching (AC-2, AC-18)", () => {
 
   test("recognizes 'waarvan onverzadigde vetzuren' as unsaturates (AC-18)", () => {
     const raw = {
+      product_name: "Test",
+      basis: "g",
+      columns: [{ label: "per 100 g", amount: "100", unit: "g" }],
       rows: [
-        { cells: ["Energie", "1672 kJ", "399 kcal", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["waarvan onverzadigde vetzuren", "0 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Koolhydraten", "84 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["waarvan suikers", "80 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Vezels", "2,4 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: "Eiwitten", "10 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Zout", "1,8 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+        { name: "Energie", unit: null, values: ["1672 kJ / 399 kcal"], ri: null },
+        { name: "Fett", unit: "g", values: ["0,1"], ri: null },
+        { name: "waarvan onverzadigde vetzuren", unit: "g", values: ["0"], ri: null },
+        { name: "Koolhydraten", unit: "g", values: ["84"], ri: null },
+        { name: "waarvan suikers", unit: "g", values: ["80"], ri: null },
+        { name: "Vezels", unit: "g", values: ["2,4"], ri: null },
+        { name: "Eiwitten", unit: "g", values: ["10"], ri: null },
+        { name: "Zout", unit: "g", values: ["1,8"], ri: null }
       ],
-      per100: true,
-      portion: null,
-      portionName: null
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.strictEqual(result.per100.unsaturates, 0);
@@ -73,16 +77,18 @@ describe("alias matching (AC-2, AC-18)", () => {
 describe("kJ/kcal split (AC-4)", () => {
   test("splits '1672 kJ / 399 kcal' into energy_kj and energy_kcal", () => {
     const raw = {
+      product_name: "Test",
+      basis: "g",
+      columns: [{ label: "per 100 g", amount: "100", unit: "g" }],
       rows: [
-        { cells: ["Energie", "1672 kJ / 399 kcal", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Koolhydraten", "84 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Eiwitten", "10 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Zout", "1,8 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+        { name: "Energie", unit: null, values: ["1672 kJ / 399 kcal"], ri: null },
+        { name: "Fett", unit: "g", values: ["0,1"], ri: null },
+        { name: "Koolhydraten", unit: "g", values: ["84"], ri: null },
+        { name: "Eiwitten", unit: "g", values: ["10"], ri: null },
+        { name: "Zout", unit: "g", values: ["1,8"], ri: null }
       ],
-      per100: true,
-      portion: null,
-      portionName: null
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.strictEqual(result.per100.energy_kj, 1672);
@@ -93,16 +99,21 @@ describe("kJ/kcal split (AC-4)", () => {
 describe("%RI-only column discarded (AC-7)", () => {
   test("discards %RI column, keeps only numeric columns", () => {
     const raw = {
-      rows: [
-        { cells: ["Energie", "1672 kJ", "399 kcal", "40%", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Koolhydraten", "84 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Eiwitten", "10 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Zout", "1,8 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+      product_name: "Test",
+      basis: "g",
+      columns: [
+        { label: "per 100 g", amount: "100", unit: "g" },
+        { label: "% RI", amount: null, unit: "%" }
       ],
-      per100: true,
-      portion: null,
-      portionName: null
+      rows: [
+        { name: "Energie", unit: null, values: ["1672 kJ", "399 kcal", "40%"], ri: null },
+        { name: "Fett", unit: "g", values: ["0,1", "—"], ri: null },
+        { name: "Koolhydraten", unit: "g", values: ["84", "—"], ri: null },
+        { name: "Eiwitten", unit: "g", values: ["10", "—"], ri: null },
+        { name: "Zout", unit: "g", values: ["1,8", "—"], ri: null }
+      ],
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.strictEqual(result.per100.energy_kj, 1672);
@@ -115,20 +126,22 @@ describe("%RI-only column discarded (AC-7)", () => {
 });
 
 describe("vitamin extras (AC-14, AC-15, AC-16, AC-17)", () => {
-  test("parses vitamin A as extras", () => {
+  test("parses vitamin A and D as extras", () => {
     const raw = {
+      product_name: "Test",
+      basis: "g",
+      columns: [{ label: "per 100 g", amount: "100", unit: "g" }],
       rows: [
-        { cells: ["Energie", "1672 kJ", "399 kcal", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Koolhydraten", "84 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Eiwitten", "10 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Zout", "1,8 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Vitamin A", "700 µg", "87%", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Vitamin D", "10 µg", "200%", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+        { name: "Energie", unit: null, values: ["1672 kJ / 399 kcal"], ri: null },
+        { name: "Fett", unit: "g", values: ["0,1"], ri: null },
+        { name: "Koolhydraten", unit: "g", values: ["84"], ri: null },
+        { name: "Eiwitten", unit: "g", values: ["10"], ri: null },
+        { name: "Zout", unit: "g", values: ["1,8"], ri: null },
+        { name: "Vitamin A", unit: "µg", values: ["700"], ri: ["87%"] },
+        { name: "Vitamin D", unit: "µg", values: ["10"], ri: ["200%"] }
       ],
-      per100: true,
-      portion: null,
-      portionName: null
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.ok(result.per100.extras);
@@ -140,16 +153,18 @@ describe("vitamin extras (AC-14, AC-15, AC-16, AC-17)", () => {
 describe("portion-only derivation (AC-9)", () => {
   test("derives portion from per100 when no portion column", () => {
     const raw = {
+      product_name: "Test",
+      basis: "g",
+      columns: [{ label: "per 100 g", amount: "100", unit: "g" }],
       rows: [
-        { cells: ["Energie", "1672 kJ", "399 kcal", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Koolhydraten", "84 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Eiwitten", "10 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Zout", "1,8 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+        { name: "Energie", unit: null, values: ["1672 kJ / 399 kcal"], ri: null },
+        { name: "Fett", unit: "g", values: ["0,1"], ri: null },
+        { name: "Koolhydraten", unit: "g", values: ["84"], ri: null },
+        { name: "Eiwitten", unit: "g", values: ["10"], ri: null },
+        { name: "Zout", unit: "g", values: ["1,8"], ri: null }
       ],
-      per100: true,
-      portion: null,
-      portionName: null
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.ok(result.per100);
@@ -160,16 +175,18 @@ describe("portion-only derivation (AC-9)", () => {
 describe("no_per100 mode (AC-10)", () => {
   test("returns null per100 when no per100 column", () => {
     const raw = {
+      product_name: "Test",
+      basis: "g",
+      columns: [{ label: "per serving", amount: "250", unit: "ml" }],
       rows: [
-        { cells: ["Energie", "502 kJ", "120 kcal", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Fett", "3 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Koolhydraten", "24 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Eiwitten", "3 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] },
-        { cells: ["Zout", "0,1 g", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—", "—"] }
+        { name: "Energie", unit: null, values: ["502 kJ / 120 kcal"], ri: null },
+        { name: "Fett", unit: "g", values: ["3"], ri: null },
+        { name: "Koolhydraten", unit: "g", values: ["24"], ri: null },
+        { name: "Eiwitten", unit: "g", values: ["3"], ri: null },
+        { name: "Zout", unit: "g", values: ["0,1"], ri: null }
       ],
-      per100: false,
-      portion: null,
-      portionName: null
+      unreadable: [],
+      notes: null
     };
     const result = parseOcrResponse(raw);
     assert.strictEqual(result.per100, null);
@@ -187,6 +204,6 @@ describe("typed errors on malformed input (AC-19)", () => {
   });
 
   test("throws TypeError for rows without cells", () => {
-    assert.throws(() => parseOcrResponse({ rows: [{}], per100: true, portion: null, portionName: null }), TypeError);
+    assert.throws(() => parseOcrResponse({ rows: [{}], columns: [] }), TypeError);
   });
 });
