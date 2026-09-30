@@ -1,46 +1,34 @@
-// F3: Olive oil spray – rotated photo, only per 100 ml, vitamin E extra
-export const raw = {
-  productName: "Extra olijfolie van de eerste persing",
-  basis: "ml",
-  columns: [
-    {
-      label: "100 ml",
-      amount: 100,
-      unit: "ml",
-      values: [
-        { nutrient: "energie", amount: "3404 kJ / 828 kcal" },
-        { nutrient: "vetten", amount: "92 g" },
-        { nutrient: "waarvan verzadigde vetzuren", amount: "14 g" },
-        { nutrient: "koolhydraten", amount: "0 g" },
-        { nutrient: "waarvan suikers", amount: "0 g" },
-        { nutrient: "vezels", amount: "0 g" },
-        { nutrient: "eiwitten", amount: "0 g" },
-        { nutrient: "zout", amount: "0 g" },
-        { nutrient: "vitamine E", amount: "18 mg", ri: "150" }
-      ]
-    }
-  ],
-  notes: "200 ml. RI: 8400 kJ / 2000 kcal."
-};
+// Fixture F3: Olive Oil - kJ/kcal on separate lines, no per100 %RI
+// Raw OCR response as an array of strings (lines)
+export const f3OilRaw = [
+  "NUTRITION LABEL",
+  "Per 100ml",
+  "Energy  3370  800",
+  "Fat  100g",
+  "  of which saturates  13.8g",
+  "Carbohydrate  0g",
+  "  of which sugars  0g",
+  "Protein  0g",
+  "Salt  0g",
+  "Vitamin E  14mg",
+  "Vitamin K  60μg",
+];
 
-export const expected = {
-  productName: "Extra olijfolie van de eerste persing",
-  basis: "ml",
-  portion: null,
+// Expected normalized output for F3
+export const f3OilExpected = {
   per100: {
-    energy_kj: 3404,
-    energy_kcal: 828,
-    fat: 92,
-    saturates: 14,
+    energyKj: 3370,
+    energyKcal: 800,
+    fat: 100,
+    saturates: 13.8,
     carbohydrate: 0,
     sugars: 0,
-    fibre: 0,
     protein: 0,
-    salt: 0
+    salt: 0,
+    vitaminE: 14,
+    vitaminK: 60,
   },
-  portionValues: null,
-  extras: [
-    { name: "vitamina E", amount: 18, unit: "mg", riPercent: 150 }
-  ],
-  notes: "200 ml. RI: 8400 kJ / 2000 kcal."
+  per100PercentRI: {},
+  portion: undefined,
+  portionGrams: undefined,
 };
