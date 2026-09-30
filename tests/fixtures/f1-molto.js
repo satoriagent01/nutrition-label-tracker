@@ -1,39 +1,40 @@
-// F1: Dr. Schär Melto – raw OCR JSON (multilingual, per 100 g | per 30 g)
-export default {
-  productName: "Melto - Barritas de chocolate con leche sin gluten",
-  basis: "g",
-  columns: [
-    {
-      label: "100 g",
-      amount: 100,
-      unit: "g",
-      values: [
-        { nutrient: "Energie / énergie / energie / energia", kJ: "2292", kcal: "549" },
-        { nutrient: "Fett / matières grasses / vetten / grassi", g: "33" },
-        { nutrient: "davon gesättigte Fettsäuren / dont acides gras saturés / waarvan verzadigde vetzuren / di cui acidi grassi saturi", g: "13" },
-        { nutrient: "Kohlenhydrate / glucides / koolhydraten / carboidrati", g: "55" },
-        { nutrient: "davon Zucker / dont sucres / waarvan suikers / di cui zuccheri", g: "45" },
-        { nutrient: "Ballaststoffe / fibres alimentaires / vezels / fibre", g: "2,4" },
-        { nutrient: "Eiweiß / protéines / eiwitten / proteine", g: "6,8" },
-        { nutrient: "Salz / sel / zout / sale", g: "0,18" }
-      ]
-    },
-    {
-      label: "30 g = 1 Melto",
-      amount: 30,
-      unit: "g",
-      values: [
-        { nutrient: "Energie / énergie / energie / energia", kJ: "688", kcal: "165" },
-        { nutrient: "Fett / matières grasses / vetten / grassi", g: "10" },
-        { nutrient: "davon gesättigte Fettsäuren / dont acides gras saturés / waarvan verzadigde vetzuren / di cui acidi grassi saturi", g: "3,9" },
-        { nutrient: "Kohlenhydrate / glucides / koolhydraten / carboidrati", g: "16" },
-        { nutrient: "davon Zucker / dont sucres / waarvan suikers / di cui zuccheri", g: "14" },
-        { nutrient: "Ballaststoffe / fibres alimentaires / vezels / fibre", g: "0,7" },
-        { nutrient: "Eiweiß / protéines / eiwitten / proteine", g: "2,0" },
-        { nutrient: "Salz / sel / zout / sale", g: "0,05" }
-      ]
-    }
-  ],
-  unreadable: [],
-  notes: "Etiquetas multilingües: DE, FR, NL, IT"
+// Fixture F1: Molto Calcio - standard nutrition label
+// Raw OCR response as an array of strings (lines)
+export const f1MoltoRaw = [
+  "NUTRITION LABEL",
+  "Per 100ml",
+  "Energy  kJ  170",
+  "Energy  kcal  40",
+  "Fat  0g",
+  "  of which saturates  0g",
+  "Carbohydrate  9g",
+  "  of which sugars  9g",
+  "Fibre  0g",
+  "Protein  0g",
+  "Salt  0.01g",
+  "Sodium  4mg",
+  "Calcium  90mg",
+  "%RI Calcium  11%",
+];
+
+// Expected normalized output for F1
+export const f1MoltoExpected = {
+  per100: {
+    energyKj: 170,
+    energyKcal: 40,
+    fat: 0,
+    saturates: 0,
+    carbohydrate: 9,
+    sugars: 9,
+    fibre: 0,
+    protein: 0,
+    salt: 0.01,
+    sodium: 4,
+    calcium: 90,
+  },
+  per100PercentRI: {
+    calcium: 11,
+  },
+  portion: undefined,
+  portionGrams: undefined,
 };
