@@ -1,33 +1,55 @@
 # Nutrition Label Tracker — Specification
 
 This file is the contract between the tests and the code. Every acceptance
-criterion (AC-1 … AC-20) is testable; the tests import only `src/` modules and
-never touch the network, the camera, the DOM or `localStorage` directly.
+criterion (AC-1 … AC-20) is testable and maps to the requirement ids
+(R-1 … R-7, F-1 … F-6) of §1. The tests import only `src/` modules and never
+touch the network, the camera, the DOM or `localStorage` directly.
 
-## 1. Requirements (fixed, from the requester)
+## 1. Requirements
 
-- **R-1** Scan a nutrition-label photo and turn it into structured data (OCR
-  through an OpenAI-compatible endpoint the user configures).
-- **R-2** A review/correct screen is mandatory before saving; manual entry
-  without a photo is allowed.
-- **R-3** Save products in a local catalog.
-- **R-4** Build a dish ("plato") from saved products with amounts in each
-  product's own basis (g or ml) and see totals of the chosen nutrients.
-- **R-5** Saved nutrient selection; optional per-nutrient daily target
+### 1.1 From the requester (fixed)
+
+- **R-1** The user takes a photo of the product's nutrition table.
+- **R-2** AI OCR turns the photo into structured data, through an
+  OpenAI-compatible endpoint the user configures (base URL, API key, model).
+- **R-3** Everything after the OCR is deterministic: parsing, calculations
+  and totals are plain code — no AI involved.
+- **R-4** The user chooses their own custom mix of nutrients to track; the
+  app is not locked to one goal or diet.
+- **R-5** Meal planner: the user enters grams (or ml) per food and the app
+  computes the dish's nutrition from the scanned products.
+- **R-6** The app is free and shows no ads.
+- **R-7** The OCR copes with multilingual labels, with per 100 g /
+  per 100 ml / per portion columns, and with rotated, blurry or partly
+  finger-covered photos.
+
+### 1.2 Added features (from the brief's scope)
+
+- **F-1** A review/correct screen is mandatory before saving a product;
+  unreadable fields are highlighted; manual entry without a photo is allowed.
+- **F-2** No accounts; data lives in `localStorage` with JSON export/import
+  (the API key is never exported).
+- **F-3** Saved nutrient selection; optional per-nutrient daily target
   (min/max) with progress.
-- **R-6** Saved dishes; a simple day log (one day, browse by date) with totals
-  vs targets.
-- **R-7** No accounts; data in `localStorage` with JSON export/import;
-  local-only "Tu uso" counters; no analytics; free, no ads.
+- **F-4** Saved dishes; a simple day log (one day, browse by date) with
+  totals vs targets.
+- **F-5** Local-only "Tu uso" counters; no analytics.
+- **F-6** OCR settings (base URL, API key, model) live in `localStorage`
+  only; the browser calls the provider directly (no proxy); Ajustes explains
+  the base URL, CORS and possible provider charges.
+
+Every acceptance criterion in §9 maps to these ids.
 
 ## 2. Stack and repository layout
 
 - Node 24, ES modules, **no build step, no dependencies**.
-- `src/` — pure logic. Everything platform-specific (storage backend, `fetch`,
-  the current date) is passed in as a parameter. No browser or Node APIs.
+- `src/` — pure logic. Everything platform-specific (storage backend,
+  `fetch`, the current date) is passed in as a parameter. No browser or Node
+  APIs.
 - `public/` — the user interface: HTML, CSS and ES modules that import
   `../src/`. All user-visible texts in **Spanish**.
-- `tests/` — `node:test`; the only place the network is faked (fake `fetch`).
+- `tests/` — `node:test`; the only place the network is faked (fake
+  `fetch`).
 - `.github/workflows/ci.yml` — runs `npm test` on Node 24.
 - `README.md`, `docs/SPEC.md`.
 - Code, tests, docs and commit messages in English.
@@ -52,7 +74,8 @@ Package 90 g, portion 30 g. Two columns: per 100 g | per 30 g.
 | Salz | 0,18 g | 0,05 g |
 
 Derived sodium: 0,18 g salt → **72 mg sodium per 100 g**; one portion computed
-from the per-100 column → **21,6 mg sodium per 30 g** (see rule 5.4).
+from the per-100 column → **21,6 mg sodium per 30 g** (rule 5.3; both within
+1e-9, see rule 5.6).
 
 ### F2 — Dutch juice (1 L carton, glass = 200 ml)
 
@@ -73,9 +96,11 @@ Two value columns: per 100 ml | per glas (200 ml), **plus a second table of
 | Vitamine C | 21 mg (26% RI) | — |
 
 The "waarvan onverzadigde vetzuren" row maps to the catalog id `unsaturates`.
-The 200 ml glass column is kept as the **portion column**. The %RI table is
-discarded as a column; vitamin C is kept as an extra
-`{name: "Vitamine C", amount: 21, unit: "mg", ri_percent: 26}`.
+The 200 ml glass column is kept as the **portion column**. The separate
+%RI-per-glass table (energy 5,0%, fat 0%, saturates 0%, carbohydrate 8,0%,
+sugars 22%, salt 0%) is **discarded as a column**. Vitamin C is kept as an
+extra `{name: "Vitamine C", amount: 21, unit: "mg", ri_percent: 26}` — amount
+and RI exactly as printed per 100 ml; **no per-glass RI value is fabricated**.
 
 ### F3 — Olive oil spray (Dutch, 200 ml, rotated photo)
 
@@ -129,9 +154,9 @@ in the nutrient selection) once it exists in a saved product.
   values are never invented.
 - **5.3 Sodium is in mg end to end**: `nutrientValue(product, "sodium")`,
   dish totals, day totals and targets are all in mg. Derived sodium:
-  `sodium_mg = salt_g / 2.5 * 1000` (F1: 0.18 → 72 mg per 100 g; one 30 g
-  portion → 21.6 mg). Sodium printed on the label (in g or mg) is normalized
-  to mg and wins over the derived value.
+  `sodium_mg = salt_g / 2.5 * 1000`, unrounded (F1: 0.18 → 72 mg per 100 g;
+  one 30 g portion → 21.6 mg; both within 1e-9, rule 5.6). Sodium printed on
+  the label (in g or mg) is normalized to mg and wins over the derived value.
 - **5.4 The calculation source is the per-100 g/ml column.** The portion
   column is kept as printed, plus the portion size. "1 porción" in the dish
   planner means `portion_size × per-100 value / 100` — for F1 carbohydrate
@@ -141,9 +166,12 @@ in the nutrient selection) once it exists in a saved product.
   dish amounts are entered in the product's basis. An optional per-product,
   user-entered density (g/ml) allows cross-basis amounts; there are **no
   hardcoded densities**.
-- **5.6 Rounding:** every computed value is rounded with
-  `Math.round(x * 100) / 100` (exported as `round2`) so tests compare with
-  exact equality.
+- **5.6 Precision: no intermediate rounding.** All stored and computed values
+  keep full double precision; rounding happens **only at presentation**.
+  `round2(x) = Math.round(x * 100) / 100` exists for the UI only and is never
+  applied to stored or intermediate values. Tests compare computed values
+  with tolerance **1e-9**, and displayed (round2) values with tolerance
+  **0.005**.
 - **5.7 Unreadable convention:** a field whose value is `null` because it was
   unreadable is listed in `unreadable`; the Revisar screen highlights exactly
   those fields.
@@ -197,26 +225,48 @@ the printed unit when present (`"2292 kJ / 549 kcal"`, `"0,18"`, `"21"`).
    unit g/ml is the **portion column** (kept as printed; its amount is
    `portion_size`). A **%RI-only column** — every non-null value matches
    `/^\d+(?:[.,]\d+)?\s*%/` and no value contains g/mg/µg/kJ/kcal — is
-   **discarded as a column**; rows with a g/mg/µg amount in the per-100 column
-   and a percent in `ri` are still kept (vitamins become extras).
-2. **Name matching.** Row names are normalized (lowercase, NFD diacritics
-   stripped, `ß`→`ss`, whitespace collapsed) and matched against
-   `NUTRIENT_ALIASES` in this order: energy, saturates, monounsaturates,
-   polyunsaturates, unsaturates, fat, sugars, carbohydrate, fibre, protein,
-   salt, sodium. A row matches when its normalized name equals an alias or
-   starts with it followed by a space or parenthesis.
-3. **Aliases** (`NUTRIENT_ALIASES`, already normalized):
+   **discarded as a column**; rows with a g/mg/µg amount in a kept column and
+   a percent in `ri` are still kept (vitamins become extras).
+2. **Portion-only labels.** If no per-100 column exists but a portion column
+   with a printed size (numeric `amount` in g or ml) exists, the per-100
+   values are derived deterministically: `per100 = value × 100 / portion
+   size`, and the normalized result is flagged `derived_from_portion: true`.
+   kJ and kcal are derived the same way, each from its own printed portion
+   value — **never converted between each other** (rule 5.1). If the portion
+   size is missing or unreadable, throw `no_per100`. A printed per-100 column
+   always takes precedence (flag `false`). Example (synthetic): columns
+   `[{"label": "per portie (25 g)", "amount": "25", "unit": "g"}]`, rows
+   Energie `["500 kJ / 120 kcal"]` and Vetten `["5"]` → `portion_size: 25`,
+   `per100.energy_kj = 2000`, `per100.energy_kcal = 480`, `per100.fat = 20`,
+   `derived_from_portion: true`, and `portion` keeps the printed values
+   (`energy_kj: 500`, `energy_kcal: 120`, `fat: 5`).
+3. **Name matching (exact).** Normalize the row name: lowercase; trim;
+   NFD-normalize and remove combining marks (diacritics-insensitive);
+   `ß`→`ss`; collapse internal whitespace to single spaces. Then remove one
+   leading qualifier phrase if present: `davon`, `dont`, `waarvan`, `di cui`,
+   `of which`. The result must **equal exactly** one alias in
+   `NUTRIENT_ALIASES` (stored already normalized). Ids are tried in this
+   order: energy, saturates, monounsaturates, polyunsaturates, unsaturates,
+   fat, sugars, carbohydrate, fibre, protein, salt, sodium; the first exact
+   match wins. Rows that match nothing become extras (rule 7) or are ignored.
+   (The full forms with qualifier, e.g. `waarvan verzadigde vetzuren`, are
+   also listed as aliases, so the match works with or without the
+   prefix-stripping step.)
+4. **Aliases** (`NUTRIENT_ALIASES`, already normalized):
    - energy: `energie`, `energy`, `energia`, `energiewaarde`, `brennwert`,
      `valeur energetique`, `valor energetico`
-   - fat: `fett`, `vetten`, `vet`, `matieres grasses`, `grassi`, `grasas`,
-     `fat`, `lipides`
+   - fat: `fett`, `vetten`, `vet`, `totaal vet`, `matieres grasses`,
+     `grassi`, `grasas`, `fat`, `lipides`
    - saturates: `davon gesattigte fettsauren`, `gesattigte fettsauren`,
-     `waarvan verzadigd`, `verzadigde vetzuren`, `dont acides gras satures`,
-     `acides gras satures`, `di cui acidi grassi saturi`, `grassi saturi`,
-     `saturated fat`, `saturates`, `grasas saturadas`
-   - unsaturates: `waarvan onverzadigd`, `onverzadigde vetzuren`,
-     `ungesattigte fettsauren`, `acides gras insatures`, `grassi insaturi`,
-     `unsaturated fat`, `grasas insaturadas`
+     `waarvan verzadigde vetzuren`, `verzadigde vetzuren`,
+     `waarvan verzadigd`, `verzadigd vet`, `verz. vet`,
+     `dont acides gras satures`, `acides gras satures`,
+     `di cui acidi grassi saturi`, `grassi saturi`, `saturated fat`,
+     `saturates`, `grasas saturadas`
+   - unsaturates: `waarvan onverzadigde vetzuren`, `onverzadigde vetzuren`,
+     `waarvan onverzadigd`, `onverzadigd vet`, `ungesattigte fettsauren`,
+     `acides gras insatures`, `grassi insaturi`, `unsaturated fat`,
+     `grasas insaturadas`
    - monounsaturates: `einfach ungesattigte fettsauren`,
      `mono-onverzadigde vetzuren`, `acides gras monoinsatures`,
      `grassi monoinsaturi`, `monounsaturated fat`, `grasas monoinsaturadas`
@@ -235,22 +285,22 @@ the printed unit when present (`"2292 kJ / 549 kcal"`, `"0,18"`, `"21"`).
      `proteine`, `protein`, `proteinas`
    - salt: `salz`, `zout`, `sel`, `sale`, `salt`, `sal`
    - sodium: `natrium`, `sodium`, `sodio`
-4. **Energy split.** `"X kJ / Y kcal"` is split with
+5. **Energy split.** `"X kJ / Y kcal"` is split with
    `/(\d+(?:[.,]\d+)?)\s*kJ\s*[\/\-–|]\s*(\d+(?:[.,]\d+)?)\s*kcal/i` and the
-   reversed-order variant with kcal first; a lone `… kJ` or `… kcal` fills only
-   its own field and leaves the other `null` (rule 5.1).
-5. **Units.** `µg`, `μg`, `mcg`, `ug` normalize to `µg`; `mg`→`mg`, `g`→`g`,
+   reversed-order variant with kcal first; a lone `… kJ` or `… kcal` fills
+   only its own field and leaves the other `null` (rule 5.1).
+6. **Units.** `µg`, `μg`, `mcg`, `ug` normalize to `µg`; `mg`→`mg`, `g`→`g`,
    `kJ`→`kJ`, `kcal`→`kcal`. Core nutrients are stored in g (a value printed
    in mg is divided by 1000) **except sodium, stored in mg** (printed g ×
    1000, printed mg as-is). Extras keep their printed (normalized) unit.
-6. **Extras.** Rows matching no catalog id with an amount in g/mg/µg become
+7. **Extras.** Rows matching no catalog id with an amount in g/mg/µg become
    `{name (as printed), amount (number), unit, ri_percent (number|null)}`.
    When summing extras in totals, only equal units add up; mixed units make
    the total `null` (unknown).
-7. **Typed errors.** `OcrParseError` (extends `Error`, `.code`):
+8. **Typed errors.** `OcrParseError` (extends `Error`, `.code`):
    `not_json` (input not valid JSON / not an object),
    `missing_columns` (no columns array or empty),
-   `no_per100` (no per-100 column found),
+   `no_per100` (no per-100 column and no usable portion column, rule 2),
    `bad_rows` (rows missing or not an array).
    Messages in Spanish, e.g. `"La respuesta no es un JSON válido."`,
    `"No se encontró la columna por 100 g/ml."`.
@@ -264,6 +314,7 @@ Normalized output shape:
   "name": "string | null",
   "basis": "g | ml",
   "portion_size": "number | null",
+  "derived_from_portion": false,
   "per100": {"energy_kj": 0, "…all 13 catalog ids…": "number | null"},
   "portion": "same shape as per100 | null",
   "extras": [{"name": "string", "amount": 0, "unit": "g|mg|µg", "ri_percent": "number | null"}],
@@ -274,6 +325,8 @@ Normalized output shape:
 
 `per100` and `portion` always contain all 13 catalog ids; unmatched rows stay
 `null`. `sodium` is `null` here (it is derived later by `nutrientValue`).
+`derived_from_portion` is `false` for F1, F2 and F3 (all have a printed
+per-100 column).
 
 **F1 raw:**
 
@@ -307,6 +360,7 @@ Normalized output shape:
   "name": "Dr. Schär Melto",
   "basis": "g",
   "portion_size": 30,
+  "derived_from_portion": false,
   "per100": {
     "energy_kj": 2292, "energy_kcal": 549, "fat": 33, "saturates": 13,
     "unsaturates": null, "monounsaturates": null, "polyunsaturates": null,
@@ -325,7 +379,9 @@ Normalized output shape:
 }
 ```
 
-**F2 raw** (note the third, %RI-only column — the second table on the label):
+**F2 raw** (the third column is the label's second table — %RI per glass —
+with its real percentages; it must be discarded as a column. Vitamin C keeps
+its per-100-ml amount 21 mg and ri "26"; no per-glass RI value is invented):
 
 ```json
 {
@@ -337,16 +393,16 @@ Normalized output shape:
     {"label": "%RI per glas", "amount": null, "unit": null}
   ],
   "rows": [
-    {"name": "Energie", "unit": null, "values": ["199 kJ / 47 kcal", "399 kJ / 94 kcal", null], "ri": null},
+    {"name": "Energie", "unit": null, "values": ["199 kJ / 47 kcal", "399 kJ / 94 kcal", "5,0%"], "ri": null},
     {"name": "Vetten", "unit": "g", "values": ["0", "0", "0%"], "ri": null},
-    {"name": "waarvan verzadigde vetzuren", "unit": "g", "values": ["0", "0", null], "ri": null},
+    {"name": "waarvan verzadigde vetzuren", "unit": "g", "values": ["0", "0", "0%"], "ri": null},
     {"name": "waarvan onverzadigde vetzuren", "unit": "g", "values": ["0", "0", null], "ri": null},
-    {"name": "Koolhydraten", "unit": "g", "values": ["11", "22", null], "ri": null},
-    {"name": "waarvan suikers", "unit": "g", "values": ["10", "20", null], "ri": null},
+    {"name": "Koolhydraten", "unit": "g", "values": ["11", "22", "8,0%"], "ri": null},
+    {"name": "waarvan suikers", "unit": "g", "values": ["10", "20", "22%"], "ri": null},
     {"name": "Vezels", "unit": "g", "values": ["0,7", "1,4", null], "ri": null},
     {"name": "Eiwitten", "unit": "g", "values": ["0,4", "0,8", null], "ri": null},
-    {"name": "Zout", "unit": "g", "values": ["0", "0", null], "ri": null},
-    {"name": "Vitamine C", "unit": "mg", "values": ["21", null, "26%"], "ri": "26"}
+    {"name": "Zout", "unit": "g", "values": ["0", "0", "0%"], "ri": null},
+    {"name": "Vitamine C", "unit": "mg", "values": ["21", null, null], "ri": "26"}
   ],
   "unreadable": [],
   "notes": "1 L pak"
@@ -360,6 +416,7 @@ Normalized output shape:
   "name": "Sinasappelsap",
   "basis": "ml",
   "portion_size": 200,
+  "derived_from_portion": false,
   "per100": {
     "energy_kj": 199, "energy_kcal": 47, "fat": 0, "saturates": 0,
     "unsaturates": 0, "monounsaturates": null, "polyunsaturates": null,
@@ -413,6 +470,7 @@ sees this JSON):
   "name": "Olijfolie spray",
   "basis": "ml",
   "portion_size": null,
+  "derived_from_portion": false,
   "per100": {
     "energy_kj": 3404, "energy_kcal": 828, "fat": 92, "saturates": 14,
     "unsaturates": null, "monounsaturates": null, "polyunsaturates": null,
@@ -471,18 +529,19 @@ according to the user's own plan.
 
 ### `src/nutrients.js`
 - `NUTRIENTS` — array of the 13 `{id, name_es, unit}` of §4, in that order. (AC-13)
-- `NUTRIENT_ALIASES` — `{id: string[]}` of §6.4.3. (AC-2, AC-18)
+- `NUTRIENT_ALIASES` — `{id: string[]}` of §6.4 rule 4, already normalized. (AC-2, AC-18)
 - `getNutrient(id)` → `{id, name_es, unit} | null`. (AC-13)
 - `parseNumber(str)` → `number | null`; comma and dot decimals; `""`, `null`,
   unreadable text → `null`. (AC-5)
-- `round2(x)` → `Math.round(x * 100) / 100`. (AC-11)
-- `saltToSodiumMg(saltG)` → `null | round2(saltG / 2.5 * 1000)`; example:
-  `saltToSodiumMg(0.18)` → `72`. (AC-6)
-- `scalePer100(value, amount)` → `null | round2(value * amount / 100)`;
-  example: `scalePer100(55, 30)` → `16.5`. (AC-11)
+- `round2(x)` → `Math.round(x * 100) / 100`; **presentation only** — the UI
+  formats with it, `src/` never rounds stored or intermediate values. (AC-20)
+- `saltToSodiumMg(saltG)` → `null | saltG / 2.5 * 1000` (unrounded); example:
+  `saltToSodiumMg(0.18)` = 72 ± 1e-9. (AC-6)
+- `scalePer100(value, amount)` → `null | value * amount / 100` (unrounded);
+  example: `scalePer100(55, 30)` → `16.5`. (AC-11, AC-20)
 - `convertAmount({value, from, to, density})` → same basis: `value`; cross
-  g↔ml with a user density (g/ml): `round2(value * density)` or
-  `round2(value / density)`; cross-basis without density: `null`. (AC-12)
+  g↔ml with a user density (g/ml): `value * density` or `value / density`
+  (unrounded); cross-basis without density: `null`. (AC-12)
 
 ### `src/ocr-prompt.js`
 - `OCR_PROMPT` — the prompt string of §6.2. (AC-7)
@@ -490,10 +549,10 @@ according to the user's own plan.
   `[{role: "system", content: OCR_PROMPT}, {role: "user", content: [{type: "text", text: "…"}, {type: "image_url", image_url: {url: imageDataUrl}}]}]`. (AC-8)
 
 ### `src/ocr-parse.js`
-- `class OcrParseError extends Error` with `.code` (§6.4.7). (AC-9)
+- `class OcrParseError extends Error` with `.code` (§6.4 rule 8). (AC-10)
 - `parseOcrResponse(raw)` — accepts the raw content **string or an already
   parsed object**; returns the normalized label of §6.5; throws
-  `OcrParseError` on malformed input. (AC-1, AC-2, AC-3, AC-4, AC-10, AC-18)
+  `OcrParseError` on malformed input. (AC-1, AC-2, AC-3, AC-4, AC-10, AC-18, AC-19)
 
 ### `src/ocr-client.js`
 - `class OcrClientError extends Error` with `.code` and `.status`. (AC-9)
@@ -503,25 +562,25 @@ according to the user's own plan.
 
 ### `src/products.js`
 - `createProduct(data, meta)` — pure; `data` is the reviewed label
-  (`{name, basis, portion_size, per100, portion, extras, notes}`) plus
-  optional `{density}`; `meta` is `{id, createdAt}` (injected, so the function
-  stays pure); returns the product. (AC-14)
+  (`{name, basis, portion_size, derived_from_portion, per100, portion, extras, notes}`)
+  plus optional `{density}`; `meta` is `{id, createdAt}` (injected, so the
+  function stays pure); returns the product. (AC-14)
 - `saveProduct(storage, product)`, `getProduct(storage, id)`,
   `listProducts(storage)`, `deleteProduct(storage, id)` — CRUD over the
   injected storage. (AC-14)
 - `nutrientValue(product, key)` — `key` is a catalog id or an extra name;
   returns the per-100 value. For `"sodium"`: the printed sodium (mg) if
-  present, else `saltToSodiumMg(per100.salt)`. Example: F1 → `72`. (AC-6, AC-14)
+  present, else `saltToSodiumMg(per100.salt)`. Example: F1 → 72 ± 1e-9. (AC-6, AC-14)
 
 ### `src/dish.js`
-- `portionAmount(product, portions)` → `round2(product.portion_size * portions)`
-  in the product's basis; `null` when `portion_size` is `null`. (AC-11)
+- `portionAmount(product, portions)` → `product.portion_size * portions`
+  (unrounded) in the product's basis; `null` when `portion_size` is `null`. (AC-11)
 - `computeDishTotals(items, selection)` — `items`:
   `[{product, amount}]` with `amount` in the product's basis; returns
   `{key: number | null}` for each key in `selection`, summing
   `scalePer100(nutrientValue(product, key), amount)`; any `null` contribution
   makes that total `null` (unknown), never 0. Extras sum only within equal
-  units. Example: 30 g of F1 → `carbohydrate: 16.5`, `sodium: 21.6`. (AC-11)
+  units. Example: 30 g of F1 → `carbohydrate: 16.5`, `sodium: 21.6 ± 1e-9`. (AC-11)
 
 ### `src/tracking.js`
 - `DEFAULT_SELECTION` — `["energy_kcal", "fat", "saturates", "carbohydrate", "sugars", "fibre", "protein", "salt"]`. (AC-13)
@@ -545,120 +604,158 @@ according to the user's own plan.
   `{load(key, fallback), save(key, value), exportAll(), importAll(json)}`. (AC-16)
 - Keys: `nlt:products`, `nlt:dishes`, `nlt:log`, `nlt:selection`,
   `nlt:targets`, `nlt:settings`, `nlt:usage`.
-- `exportAll()` → `{version: 1, products, dishes, log, selection, targets, settings: {baseUrl, model}, usage}` — **the API key is never exported**.
-- `importAll(json)` — validates the shape, writes the keys, and **ignores any
-  `apiKey` present** in the file. (AC-16)
+- `exportAll()` → a JSON string with all keys; `settings` is included
+  **without `apiKey`** — the key never leaves the device. (AC-16)
+- `importAll(json)` → validates the top-level shape, replaces the keys
+  present, **ignores any `apiKey`** inside `settings`; throws on invalid
+  JSON. (AC-16)
 
-## 8. Screens (`public/`, all texts in Spanish)
+## 8. User interface (`public/`, all texts in Spanish)
 
-Footer on every screen: **"Gratis y sin anuncios"**.
+Six screens; every screen shows the footer **"Gratis y sin anuncios"** (R-6).
 
-1. **Escanear** — take or choose a photo; calls
-   `extractLabel({fetch, settings, imageDataUrl})` with the settings from
-   Ajustes; on success goes to Revisar; shows the Spanish `OcrClientError`
-   messages on failure. Button "Introducir manualmente" → Revisar with an
-   empty form (no photo needed). Calls: `extractLabel`.
-2. **Revisar** — **mandatory before saving**. Form: name, basis (g/ml),
-   portion size, the 13 catalog nutrients per 100 g/ml, the portion column as
-   printed (read-only reference), extras (editable rows), optional density.
-   Fields listed in `unreadable` (value `null`) are highlighted. "Guardar
-   producto" → `createProduct` + `saveProduct`. Calls: `createProduct`,
-   `saveProduct`, `NUTRIENTS`.
-3. **Productos** — list/search/edit/delete saved products; per-product
-   optional density. Calls: `listProducts`, `getProduct`, `saveProduct`,
-   `deleteProduct`, `nutrientValue`.
-4. **Plato** — pick saved products and amounts (in each product's basis, or
-   "1 porción" via `portionAmount`); shows totals of the selected nutrients;
-   can save the dish. Calls: `listProducts`, `portionAmount`,
-   `computeDishTotals`.
-5. **Hoy** — the day log for one date; browse by date; add dishes or product
-   amounts; totals vs targets with progress. Calls: `dateKey`,
-   `computeDayTotals`, `compareWithTargets`.
-6. **Ajustes** — OCR settings (base URL, API key, model) with the CORS and
-   provider-charges explanations of §6.6; nutrient selection; per-nutrient
-   targets (min/max); JSON export/import; the local-only "Tu uso" counters
-   (photos scanned, products saved, dishes computed, days logged). Calls:
-   `sanitizeSelection`, `exportAll`, `importAll`.
+- **Escanear** — camera capture (`input[type=file][capture]`) → base64 data
+  URL → `extractLabel({fetch: window.fetch, settings, imageDataUrl})` →
+  Revisar. `OcrClientError` Spanish messages are shown verbatim. A button
+  "Introducir manualmente" opens Revisar with an empty label (F-1).
+- **Revisar** — mandatory before saving (F-1). Editable form of the
+  normalized label: name, basis (g/ml), portion size, per-100 and portion
+  columns as printed, extras; fields listed in `unreadable` are highlighted
+  (rule 5.7). "Guardar" → `createProduct(data, {id: crypto.randomUUID(),
+  createdAt: new Date().toISOString()})` → `saveProduct`; "Descartar"
+  discards. No other path saves a product.
+- **Productos** — `listProducts`; edit density (optional, per product);
+  `deleteProduct`; pick products for Plato.
+- **Plato** — add saved products with an amount in the product's basis or a
+  number of portions (`portionAmount`); totals via
+  `computeDishTotals(items, selection)`; "Guardar plato" stores the dish
+  (F-4); "Añadir al día" appends its items to the day log.
+- **Hoy** — `dateKey(new Date())`, browse by date; entries listed; totals via
+  `computeDayTotals`; progress vs targets via `compareWithTargets` (F-3, F-4).
+- **Ajustes** — OCR settings (base URL, API key, model; `localStorage` only)
+  with the explanations of §6.6 (base URL e.g. `https://api.openai.com/v1`,
+  CORS, possible provider charges); nutrient selection (`sanitizeSelection`,
+  R-4); per-nutrient targets min/max (F-3); JSON export/import
+  (`exportAll`/`importAll`, F-2); "Tu uso" counters (scans, products, dishes,
+  logged days — local only, F-5).
 
 ## 9. Acceptance criteria
 
-- **AC-1** `parseOcrResponse(F1_RAW)` deep-equals F1_NORMALIZED of §6.5,
-  including the portion column exactly as printed (carbohydrate 16, not 16.5).
-- **AC-2** `parseOcrResponse(F2_RAW)` deep-equals F2_NORMALIZED: the 200 ml
-  glass column is the portion column, the %RI-only column is discarded, the
-  "waarvan onverzadigde vetzuren" row maps to `unsaturates`, and vitamin C is
-  the extra `{name: "Vitamine C", amount: 21, unit: "mg", ri_percent: 26}`.
-- **AC-3** `parseOcrResponse(F3_RAW)` deep-equals F3_NORMALIZED: single
-  per-100 column, `portion_size: null`, `portion: null`, vitamin E extra
-  `{amount: 18, unit: "mg", ri_percent: 150}`.
-- **AC-4** kJ and kcal are stored exactly as printed and never converted; a
-  row with only one of them leaves the other `null` (e.g. `"47 kcal"` →
-  `{energy_kj: null, energy_kcal: 47}`).
-- **AC-5** `parseNumber("0,18")` → 0.18, `parseNumber("2.4")` → 2.4,
-  `parseNumber("")`/`parseNumber(null)` → `null`; `null` is never turned
-  into 0 anywhere.
-- **AC-6** Sodium is in mg end to end: `saltToSodiumMg(0.18)` → 72;
-  `nutrientValue(F1_PRODUCT, "sodium")` → 72; printed sodium `"0,072 g"` → 72
-  and `"72 mg"` → 72; dish totals, day totals and targets for `sodium` are mg.
-- **AC-7** `OCR_PROMPT` contains the words `rotated`, `blurry`, `finger`,
-  `multilingual` and `unreadable` (case-insensitive); rotation/blur/finger are
-  handled by the prompt and the Revisar screen, and every save goes through
-  Revisar. The parser's own criteria (AC-1…AC-4, AC-10) cover JSON only.
-- **AC-8** `extractLabel` with a fake `fetch` requests exactly
-  `baseUrl` (trailing slashes stripped) + `/chat/completions`, method POST,
-  headers `Authorization: Bearer <key>` and `Content-Type: application/json`,
-  body `{model, messages, response_format: {type: "json_object"}, temperature: 0}`,
-  and parses `choices[0].message.content`.
-- **AC-9** `extractLabel` maps failures to `OcrClientError` codes `network`,
-  `auth` (401), `rate_limit` (429), `http` (other status), `empty`,
-  `invalid_json`, each with its Spanish message of §6.6; `parseOcrResponse`
-  throws `OcrParseError` with codes `not_json`, `missing_columns`,
-  `no_per100`, `bad_rows`.
-- **AC-10** A column whose values are all percents is discarded as a column;
-  rows with a g/mg/µg amount and a percent `ri` are kept as extras with
-  `ri_percent`.
-- **AC-11** `scalePer100(55, 30)` → 16.5; `portionAmount(F1_PRODUCT, 1)` → 30;
-  `computeDishTotals([{product: F1, amount: 30}], ["carbohydrate", "sodium"])`
-  → `{carbohydrate: 16.5, sodium: 21.6}`; a `null` nutrient in any item makes
-  that total `null`, never 0.
-- **AC-12** `convertAmount({value: 200, from: "ml", to: "g", density: null})`
-  → `null`; with `density: 0.92` → 184; same-basis returns the value; no
-  density is ever assumed by the code.
-- **AC-13** `NUTRIENTS` contains exactly the 13 ids of §4 in order, with
-  Spanish names and units (`sodium` in mg); `DEFAULT_SELECTION` and
-  `sanitizeSelection` behave as specified.
-- **AC-14** Product CRUD works over an injected storage backend;
-  `createProduct(data, {id, createdAt})` is pure; extras of a saved product
-  are selectable in the nutrient selection.
-- **AC-15** `evaluateTarget`: `{min: 25}` with total 30 → `"ok"`, with 20 →
-  `"under"`; `{max: 6}` with total 5 → `"ok"`, with 7 → `"over"`; total
-  `null` → `"unknown"`; no tolerance.
-- **AC-16** `exportAll()` output contains no `apiKey`; `importAll()` ignores
-  an `apiKey` in the file; an export→import round-trip preserves products,
-  dishes, log, selection, targets and usage.
-- **AC-17** `dateKey(new Date(2025, 0, 5))` → `"2025-01-05"`;
-  `computeDayTotals` sums the day's entries like `computeDishTotals`;
-  `compareWithTargets` returns one status per selected key.
-- **AC-18** The alias table matches the DE/FR/NL/IT names of §6.4.3 (e.g.
-  `Fett`, `matières grasses`, `vetten`, `grassi`; `Kohlenhydrate`,
-  `glucides`, `koolhydraten`, `carboidrati`; `Eiweiß`, `protéines`,
-  `eiwitten`, `proteine`; `Salz`, `sel`, `zout`, `sale`).
-- **AC-19** The app is served from the repository root and `public/` modules
-  import `../src/`; there is no build step and no dependency in
-  `package.json`; CI runs `npm test` on Node 24.
-- **AC-20** All user-visible texts are in Spanish, including the footer
-  "Gratis y sin anuncios" on every screen and every error message of §6.6;
-  manual entry without a photo is possible from Escanear.
+Each AC is automated (`node:test`, fake `fetch`, injected storage) unless it
+says manual. **R-6 and F-5 are verified by repository inspection**: no
+advertising, account or analytics code anywhere; "Tu uso" counters never
+leave `nlt:usage`.
 
-## 10. Open questions for the requester (with the defaults we build)
+- **AC-1 (R-3, R-7):** `parseOcrResponse` on the F1 raw fixture returns
+  exactly the F1 normalized output of §6.5 (per-100 as source, portion column
+  as printed, comma decimals parsed, `derived_from_portion: false`).
+- **AC-2 (R-3, R-7):** F2 raw → exactly F2 normalized: the 200 ml glass
+  column is the portion column; the percent-only %RI column is discarded;
+  vitamin C is the extra `{name: "Vitamine C", amount: 21, unit: "mg",
+  ri_percent: 26}`; `unsaturates: 0`.
+- **AC-3 (R-3, R-7):** F3 raw → exactly F3 normalized: `portion_size: null`,
+  `portion: null`, vitamin E extra `{amount: 18, unit: "mg", ri_percent: 150}`.
+- **AC-4 (R-3):** kJ and kcal are stored exactly as printed and never
+  converted between each other; a lone `… kJ` or `… kcal` fills only its own
+  field, the other stays `null`.
+- **AC-5 (R-3):** `parseNumber` accepts comma and dot decimals;
+  missing/unreadable → `null`; `null` is never treated as 0 and no value is
+  invented; unreadable fields are listed in `unreadable`.
+- **AC-6 (R-3):** sodium is in mg end to end: `saltToSodiumMg(0.18)` =
+  72 ± 1e-9; `nutrientValue(F1, "sodium")` = 72 ± 1e-9; 30 g of F1 → sodium
+  21.6 ± 1e-9; sodium printed in g or mg is normalized to mg and wins over
+  the derived value.
+- **AC-7 (R-7, F-1):** `OCR_PROMPT` contains the literal words `rotated`,
+  `blurry`, `finger`, `multilingual`, `unreadable`. Rotation/blur/finger
+  robustness is a prompt duty plus the human Revisar step; the parser's ACs
+  cover JSON only (photo robustness itself: §10, manual).
+- **AC-8 (R-1, R-2, F-6):** `extractLabel` with a fake `fetch` performs
+  exactly the call of §6.6: base URL with trailing slashes stripped +
+  `/chat/completions`, POST, headers `Authorization: Bearer <key>` and
+  `Content-Type: application/json`, body `{model, messages,
+  response_format: {type: "json_object"}, temperature: 0}`; the answer is
+  read from `choices[0].message.content`, parsed as JSON and normalized.
+- **AC-9 (R-2, F-6):** `extractLabel` maps failures to `OcrClientError` with
+  codes `network` (fetch rejects), `auth` (401), `rate_limit` (429), `http`
+  (other non-2xx, with `.status`), `empty` (no content), `invalid_json` (bad
+  JSON or parser error) and the Spanish messages of §6.6.
+- **AC-10 (R-3):** malformed model output throws `OcrParseError` with code
+  `not_json` (not JSON / not an object), `missing_columns` (no/empty columns
+  array), `no_per100` (no per-100 column and no usable portion column),
+  `bad_rows` (rows missing or not an array).
+- **AC-11 (R-5):** dish math uses the per-100 column: `scalePer100(55, 30)` =
+  16.5; "1 porción" of F1 = 30 g × per-100/100 → carbohydrate 16.5 while the
+  printed portion column says 16 (both kept); a `null` contribution makes
+  that nutrient's total `null`, never 0; extras sum only within equal units.
+- **AC-12 (R-5):** ml and g are never equated: `convertAmount` returns the
+  value unchanged within one basis, converts g↔ml only with a user-entered
+  density, returns `null` cross-basis without density; no hardcoded densities
+  exist in the repository.
+- **AC-13 (R-4):** the catalog has exactly the 13 ids of §4 with Spanish
+  names and units; `DEFAULT_SELECTION` as specified; `sanitizeSelection`
+  keeps valid catalog ids and existing extra names, dedupes and preserves
+  order — the tracked mix is fully user-chosen.
+- **AC-14 (R-3, F-2):** `createProduct(data, {id, createdAt})` is pure (id
+  and date injected); `saveProduct`/`getProduct`/`listProducts`/
+  `deleteProduct` work over an injected storage backend; `nutrientValue`
+  returns per-100 values and derives sodium in mg.
+- **AC-15 (F-3):** `evaluateTarget` implements rule 5.8 exactly — min:
+  total ≥ min → ok, else under; max: total ≤ max → ok, else over; `null`
+  total → `unknown`; no tolerance; `compareWithTargets` applies it per key.
+- **AC-16 (F-2):** `createStorage` over a Map-based fake: `load`/`save`
+  round-trip; `exportAll` returns all keys and **omits the API key**;
+  `importAll` validates the JSON, restores the data and ignores any `apiKey`.
+- **AC-17 (F-4):** `dateKey` → `YYYY-MM-DD`; `computeDayTotals` matches
+  `computeDishTotals` math; day totals compare against targets via
+  `compareWithTargets`.
+- **AC-18 (R-7):** name matching follows §6.4 rule 3 exactly (lowercase,
+  trim, diacritics-insensitive, leading `davon`/`dont`/`waarvan`/`di cui`/
+  `of which` removed, exact alias match): `waarvan verzadigde vetzuren` →
+  `saturates`, `waarvan onverzadigde vetzuren` → `unsaturates`,
+  `davon gesättigte Fettsäuren` → `saturates`;
+  `monounsaturates`/`polyunsaturates` stay `null` unless printed.
+- **AC-19 (R-7):** portion-only labels: with no per-100 column but a portion
+  column with a printed size, per-100 values are derived as
+  `value × 100 / portion size` and flagged `derived_from_portion: true` (kJ
+  and kcal derived independently, never converted); missing/unreadable
+  portion size → `no_per100`; a printed per-100 column always takes
+  precedence (flag `false`). The synthetic example of §6.4 rule 2 holds
+  exactly.
+- **AC-20 (R-3):** precision: no intermediate rounding anywhere in `src/`;
+  `round2` is used by the UI only; tests compare computed values with
+  tolerance 1e-9 and displayed (round2) values with tolerance 0.005.
+
+## 10. Manual acceptance (with a real provider)
+
+The automated tests never touch the network and **cannot prove the photo
+robustness** of R-7 (rotation, blur, fingers, lighting, real cameras). With a
+real OpenAI-compatible provider configured in Ajustes, run:
+
+- **MA-1 (F1 photo):** Escanear → OCR → Revisar shows the F1 values of §3 →
+  save → Plato with 30 g → totals: carbohydrate 16.5 g, sodium 21.6 mg
+  (displayed, ±0.005).
+- **MA-2 (F2 photo):** → Revisar shows the per-100 ml column, the 200 ml
+  glass column and the vitamin C extra (21 mg, 26% RI); no %RI column →
+  save → Plato with 200 ml → energy 94 kcal, sugars 20 g.
+- **MA-3 (F3 photo, rotated):** → Revisar shows the per-100 ml values and the
+  vitamin E extra (18 mg, 150% RI) → save → Plato with 10 ml → fat 9.2 g.
+- **MA-4 (unreadable recovery):** photograph a label with part of the table
+  covered or illegible → the OCR marks those fields unreadable → Revisar
+  highlights them → the user fills them in or leaves them empty → saving
+  works either way; empty fields stay `null` and their totals show
+  "desconocido", never 0.
+- **MA-5 (manual entry, F-1):** Revisar reached without a photo ("Introducir
+  manualmente") → all fields typed by hand → save works.
+
+## 11. Open questions for the requester (with the defaults the app ships)
 
 1. **App language** — default: Spanish (all UI texts).
-2. **Platform** — default: mobile web, served statically from the repo root.
-3. **OCR cost** — default: the user's own provider account pays per scan;
-   Ajustes says so explicitly.
-4. **Targets and day log** — default: included, optional to use (no target →
-   no progress shown).
+2. **Platform** — default: mobile web (static hosting, served from the repo
+   root).
+3. **OCR cost** — default: the user's own provider and key; Ajustes explains
+   the provider may charge per scan.
+4. **Targets and day log** — default: included, optional to use.
 5. **Liquids in the planner** — default: amounts in the product's own basis;
-   cross-basis only with an optional per-product, user-entered density.
-6. **Sodium** — default: derived from salt ÷ 2.5 and shown in mg; printed
-   sodium wins when present.
+   optional per-product, user-entered density; no hardcoded densities.
+6. **Sodium** — default: derived from salt ÷ 2.5, shown in mg; printed sodium
+   wins when present.
