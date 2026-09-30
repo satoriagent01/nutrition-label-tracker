@@ -1,12 +1,9 @@
 {
   "name": "nutrition-label-tracker",
   "version": "1.0.0",
-  "description": "Nutrition-label scanner and custom nutrient tracker with meal planner",
+  "description": "Nutrition label tracker",
   "type": "module",
   "scripts": {
     "test": "node --test tests/"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "MIT"
+  }
 }
